@@ -1,0 +1,315 @@
+# 🎮 游戏中心 Discord Bot
+
+一个多功能的 Discord 游戏机器人，目前支持恶魔轮盘赌（Buckshot Roulette）游戏。
+
+## ✨ 功能特点
+
+- 🎰 **通用筹码系统** - 跨游戏通用的虚拟货币
+- 🤖 **PvE模式** - 与AI对战，渐进难度
+- ⚔️ **PvP模式** - 与其他玩家对战
+- 📊 **统计系统** - 记录游戏数据和排行榜
+- 🎁 **每日签到** - 每天领取免费筹码
+
+## 🚀 快速开始
+
+### 1. 安装依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. 配置环境变量
+
+复制 `.env.example` 为 `.env`，并填入你的 Bot Token：
+
+```bash
+cp .env.example .env
+```
+
+编辑 `.env` 文件：
+
+```
+BOT_TOKEN=你的Discord_Bot_Token
+```
+
+### 3. 运行Bot
+
+```bash
+python bot.py
+```
+
+**Windows:** 双击 `start.bat`
+
+**Linux/Ubuntu:**
+
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+## 🐧 Ubuntu/Linux 部署指南
+
+### 系统要求
+
+- Ubuntu 18.04+ / Debian 10+ / 其他Linux发行版
+- Python 3.8+
+- pip (Python包管理器)
+
+### 安装步骤
+
+1. **安装Python和pip**
+
+```bash
+sudo apt update
+sudo apt install python3 python3-pip python3-venv -y
+```
+
+1. **克隆/上传项目到服务器**
+
+```bash
+cd /opt  # 或其他目录
+# 上传项目文件夹
+```
+
+1. **创建虚拟环境（推荐）**
+
+```bash
+cd discord-game-center
+python3 -m venv venv
+source venv/bin/activate
+```
+
+1. **安装依赖**
+
+```bash
+pip install -r requirements.txt
+```
+
+1. **配置环境变量**
+
+```bash
+cp .env.example .env
+nano .env  # 编辑并填入BOT_TOKEN
+```
+
+1. **运行Bot**
+
+```bash
+python3 bot.py
+```
+
+### 使用 systemd 后台运行（推荐）
+
+创建服务文件：
+
+```bash
+sudo nano /etc/systemd/system/game-center-bot.service
+```
+
+填入以下内容（根据实际路径修改）：
+
+```ini
+[Unit]
+Description=Game Center Discord Bot
+After=network.target
+
+[Service]
+Type=simple
+User=你的用户名
+WorkingDirectory=/opt/discord-game-center
+ExecStart=/opt/discord-game-center/venv/bin/python bot.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启用并启动服务：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable game-center-bot
+sudo systemctl start game-center-bot
+```
+
+查看状态和日志：
+
+```bash
+sudo systemctl status game-center-bot
+sudo journalctl -u game-center-bot -f
+```
+
+### 使用 screen 后台运行（简单方式）
+
+```bash
+# 安装screen
+sudo apt install screen -y
+
+# 创建新会话
+screen -S gamebot
+
+# 在会话中运行
+cd /opt/discord-game-center
+source venv/bin/activate
+python3 bot.py
+
+# 按 Ctrl+A 然后按 D 分离会话
+# 重新连接: screen -r gamebot
+```
+
+## 🐳 Docker 部署（推荐）
+
+Docker部署是最简单、最可靠的方式，特别适合VPS部署。
+
+### 优势
+
+- ✅ 环境隔离，不影响系统
+- ✅ 一键部署，无需手动安装依赖
+- ✅ 自动重启，稳定运行
+- ✅ 易于更新和回滚
+- ✅ 日志管理方便
+
+### 安装Docker
+
+```bash
+# Ubuntu/Debian
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+# 重新登录以生效
+```
+
+### 快速部署
+
+1. **上传项目到服务器**
+
+2. **配置环境变量**
+
+```bash
+cd discord-game-center
+cp .env.example .env
+nano .env  # 填入BOT_TOKEN
+```
+
+1. **启动Bot**
+
+```bash
+# 使用docker-compose（推荐）
+docker compose up -d
+
+# 或使用docker命令
+docker build -t game-center-bot .
+docker run -d --name game-center-bot \
+  --restart unless-stopped \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/.env:/app/.env \
+  game-center-bot
+```
+
+### 常用命令
+
+```bash
+# 查看状态
+docker compose ps
+
+# 查看日志
+docker compose logs -f
+
+# 重启Bot
+docker compose restart
+
+# 停止Bot
+docker compose down
+
+# 更新Bot（代码更新后）
+docker compose build
+docker compose up -d
+```
+
+### 数据持久化
+
+数据库文件保存在 `./data/` 目录，通过Docker卷挂载实现持久化。
+即使容器删除重建，数据也不会丢失。
+
+## 📝 命令
+
+| 命令    | 描述             |
+| ------- | ---------------- |
+| `/game` | 打开游戏中心面板 |
+
+## 🎰 恶魔轮盘赌
+
+### 游戏规则
+
+- 使用霰弹枪，装填混合的实弹和空包弹
+- 轮流行动，可以射击对手、射击自己或使用道具
+- 射击自己时，空包弹可保留行动权
+- 生命值归零者失败
+
+### 游戏模式
+
+- **单人挑战 (PvE)**: 渐进难度，每3轮可选择撤离或翻倍
+- **PvP对战**: 3轮2胜制，与其他玩家对战，赢家通吃押注
+- **快速模式**: 单轮快速游戏
+
+### 道具系统
+
+| 道具       | 效果                   |
+| ---------- | ---------------------- |
+| 🔍 放大镜   | 查看当前子弹类型       |
+| 🍺 啤酒     | 退出当前子弹           |
+| 🚬 香烟     | 恢复1点生命            |
+| 🔪 手锯     | 下一发实弹造成2点伤害  |
+| 🔗 手铐     | 跳过对手下回合         |
+| 💊 过期药物 | 50%恢复2点/50%扣1点    |
+| 🔄 逆转器   | 切换当前子弹类型       |
+| 📱 窃贼电话 | 随机得知某位置子弹类型 |
+
+## 📁 项目结构
+
+```
+discord-game-center/
+├── bot.py                    # Bot主入口
+├── config.py                 # 配置文件
+├── requirements.txt          # Python依赖
+├── .env                      # 环境变量
+│
+├── cogs/                     # Discord Cogs模块
+│   └── game_center.py        # 游戏中心命令
+│
+├── core/                     # 核心系统
+│   ├── economy.py            # 筹码经济系统
+│   ├── player_data.py        # 玩家数据管理
+│   └── daily.py              # 每日签到系统
+│
+├── games/                    # 游戏模块
+│   ├── base.py               # 游戏基类
+│   └── buckshot_roulette/    # 恶魔轮盘赌
+│
+├── ui/                       # 通用UI组件
+│   ├── base_views.py         # 基础View类
+│   └── menus.py              # 菜单组件
+│
+├── data/                     # 数据存储
+│   ├── database.py           # 数据库连接
+│   └── models.py             # 数据模型
+│
+└── utils/                    # 工具函数
+    ├── constants.py          # 常量定义
+    └── helpers.py            # 辅助函数
+```
+
+## 🔧 开发进度
+
+- [x] 第一阶段：基础框架
+- [ ] 第二阶段：经济系统
+- [ ] 第三阶段：恶魔轮盘赌核心
+- [ ] 第四阶段：道具系统
+- [ ] 第五阶段：PvE渐进系统
+- [ ] 第六阶段：AI系统
+- [ ] 第七阶段：PvP系统
+- [ ] 第八阶段：统计和收尾
+
+## 📄 许可证
+
+MIT License

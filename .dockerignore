@@ -1,0 +1,38 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 本地配置（使用环境变量代替）
+# .env  # 如果使用docker-compose的env_file，需要保留.env
+
+# 日志和数据（通过volume挂载）
+*.log
+data/*.db
+
+# Windows
+start.bat
+*.bat
+
+# 文档
+*.md
+!README.md
+
+# 其他
+.DS_Store
+Thumbs.db
