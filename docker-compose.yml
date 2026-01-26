@@ -6,25 +6,25 @@ services:
     build: .
     container_name: game-center-bot
     restart: unless-stopped
-    
+
     # 环境变量配置（二选一）
     # 方式1: 使用.env文件
     env_file:
       - .env
-    
+
     # 方式2: 直接配置（取消注释并填入Token）
     # environment:
     #   - BOT_TOKEN=your_discord_bot_token_here
     #   - DATABASE_PATH=data/games.db
-    
+
     # 数据持久化
     volumes:
       - ./data:/app/data
-      - ./bot.log:/app/bot.log
-    
+      # 日志文件在容器内生成，通过 docker compose logs 查看
+
     # 日志配置
     logging:
-      driver: "json-file"
+      driver: 'json-file'
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
