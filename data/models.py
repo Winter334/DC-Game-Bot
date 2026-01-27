@@ -30,6 +30,8 @@ class PlayerStats:
     games_won: int = 0
     pve_best_stage: int = 0
     pve_total_earnings: int = 0
+    pve_best_rounds: int = 0         # 最高轮数
+    pve_best_reward: int = 0         # 最大单局奖励
     pvp_wins: int = 0
     pvp_losses: int = 0
     pvp_total_earnings: int = 0

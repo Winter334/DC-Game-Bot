@@ -118,8 +118,10 @@ class GameCenterView(BaseView):
         # 先延迟响应，因为获取用户信息可能耗时较长
         await interaction.response.defer()
         
-        # 获取筹码排行榜
-        chips_lb = await self.cog.bot.database.get_chips_leaderboard(10)
+        # 获取各项排行榜
+        chips_lb = await self.cog.bot.database.get_chips_leaderboard(5)
+        rounds_lb = await self.cog.bot.database.get_rounds_leaderboard(5)
+        reward_lb = await self.cog.bot.database.get_reward_leaderboard(5)
         
         embed = discord.Embed(
             title=f"{Emoji.TROPHY} 排行榜",
@@ -143,7 +145,47 @@ class GameCenterView(BaseView):
         embed.add_field(
             name="💰 筹码排行",
             value=chips_text,
-            inline=False
+            inline=True
+        )
+        
+        # 最高轮数排行
+        rounds_text = ""
+        for i, (user_id, rounds) in enumerate(rounds_lb, 1):
+            medal = ["🥇", "🥈", "🥉"][i-1] if i <= 3 else f"{i}."
+            try:
+                user = await self.cog.bot.fetch_user(user_id)
+                name = user.display_name
+            except:
+                name = f"用户{user_id}"
+            rounds_text += f"{medal} {name}: {rounds}轮\n"
+        
+        if not rounds_text:
+            rounds_text = "暂无数据"
+        
+        embed.add_field(
+            name="🎯 最高轮数",
+            value=rounds_text,
+            inline=True
+        )
+        
+        # 最大单局奖励排行
+        reward_text = ""
+        for i, (user_id, reward) in enumerate(reward_lb, 1):
+            medal = ["🥇", "🥈", "🥉"][i-1] if i <= 3 else f"{i}."
+            try:
+                user = await self.cog.bot.fetch_user(user_id)
+                name = user.display_name
+            except:
+                name = f"用户{user_id}"
+            reward_text += f"{medal} {name}: {format_chips(reward)}\n"
+        
+        if not reward_text:
+            reward_text = "暂无数据"
+        
+        embed.add_field(
+            name="💎 最大单局奖励",
+            value=reward_text,
+            inline=True
         )
         
         view = BackOnlyView(self.cog, self.user_id, self.balance)

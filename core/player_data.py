@@ -54,13 +54,15 @@ class PlayerDataManager:
         """
         await self.db.update_player_stats(stats)
     
-    async def record_game_win(self, user_id: int, mode: str, earnings: int = 0) -> None:
+    async def record_game_win(self, user_id: int, mode: str, earnings: int = 0,
+                               total_rounds: int = 0) -> None:
         """记录游戏胜利
         
         Args:
             user_id: 用户ID
             mode: 游戏模式 (pve/pvp/quick)
             earnings: 获得的筹码
+            total_rounds: 总轮数（用于PvE记录最高轮数）
         """
         stats = await self.db.get_player_stats(user_id)
         stats.games_played += 1
@@ -71,6 +73,12 @@ class PlayerDataManager:
             stats.pvp_total_earnings += earnings
         elif mode == "pve":
             stats.pve_total_earnings += earnings
+            # 更新最高轮数
+            if total_rounds > stats.pve_best_rounds:
+                stats.pve_best_rounds = total_rounds
+            # 更新最大单局奖励
+            if earnings > stats.pve_best_reward:
+                stats.pve_best_reward = earnings
         
         await self.db.update_player_stats(stats)
     

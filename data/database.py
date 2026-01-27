@@ -51,6 +51,8 @@ class Database:
                     games_won INTEGER DEFAULT 0,
                     pve_best_stage INTEGER DEFAULT 0,
                     pve_total_earnings INTEGER DEFAULT 0,
+                    pve_best_rounds INTEGER DEFAULT 0,
+                    pve_best_reward INTEGER DEFAULT 0,
                     pvp_wins INTEGER DEFAULT 0,
                     pvp_losses INTEGER DEFAULT 0,
                     pvp_total_earnings INTEGER DEFAULT 0,
@@ -58,6 +60,16 @@ class Database:
                     total_chips_spent INTEGER DEFAULT 0
                 )
             """)
+            
+            # 添加新列（如果不存在）- 用于数据库升级
+            try:
+                await cursor.execute("ALTER TABLE player_stats ADD COLUMN pve_best_rounds INTEGER DEFAULT 0")
+            except:
+                pass  # 列已存在
+            try:
+                await cursor.execute("ALTER TABLE player_stats ADD COLUMN pve_best_reward INTEGER DEFAULT 0")
+            except:
+                pass  # 列已存在
             
             # 转账记录表
             await cursor.execute("""
@@ -172,6 +184,8 @@ class Database:
                 games_won=row["games_won"],
                 pve_best_stage=row["pve_best_stage"],
                 pve_total_earnings=row["pve_total_earnings"],
+                pve_best_rounds=row["pve_best_rounds"] if "pve_best_rounds" in row.keys() else 0,
+                pve_best_reward=row["pve_best_reward"] if "pve_best_reward" in row.keys() else 0,
                 pvp_wins=row["pvp_wins"],
                 pvp_losses=row["pvp_losses"],
                 pvp_total_earnings=row["pvp_total_earnings"],
@@ -188,6 +202,8 @@ class Database:
                     games_won = ?,
                     pve_best_stage = ?,
                     pve_total_earnings = ?,
+                    pve_best_rounds = ?,
+                    pve_best_reward = ?,
                     pvp_wins = ?,
                     pvp_losses = ?,
                     pvp_total_earnings = ?,
@@ -199,6 +215,8 @@ class Database:
                 stats.games_won,
                 stats.pve_best_stage,
                 stats.pve_total_earnings,
+                stats.pve_best_rounds,
+                stats.pve_best_reward,
                 stats.pvp_wins,
                 stats.pvp_losses,
                 stats.pvp_total_earnings,
@@ -257,6 +275,24 @@ class Database:
         async with self._connection.cursor() as cursor:
             await cursor.execute(
                 "SELECT user_id, games_won FROM player_stats ORDER BY games_won DESC LIMIT ?",
+                (limit,)
+            )
+            return await cursor.fetchall()
+    
+    async def get_rounds_leaderboard(self, limit: int = 10) -> List[tuple]:
+        """获取最高轮数排行榜"""
+        async with self._connection.cursor() as cursor:
+            await cursor.execute(
+                "SELECT user_id, pve_best_rounds FROM player_stats WHERE pve_best_rounds > 0 ORDER BY pve_best_rounds DESC LIMIT ?",
+                (limit,)
+            )
+            return await cursor.fetchall()
+    
+    async def get_reward_leaderboard(self, limit: int = 10) -> List[tuple]:
+        """获取最大单局奖励排行榜"""
+        async with self._connection.cursor() as cursor:
+            await cursor.execute(
+                "SELECT user_id, pve_best_reward FROM player_stats WHERE pve_best_reward > 0 ORDER BY pve_best_reward DESC LIMIT ?",
                 (limit,)
             )
             return await cursor.fetchall()

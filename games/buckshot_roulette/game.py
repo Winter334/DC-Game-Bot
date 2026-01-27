@@ -444,10 +444,21 @@ class BuckshotRouletteGame:
             
             if session.mode == GameMode.PVE:
                 stage = session.stage_manager.current_stage
+                total_rounds = session.stage_manager.total_rounds
+                
                 if stage > stats.pve_best_stage:
                     stats.pve_best_stage = stage
+                    
+                # 更新最高轮数（撤离成功时的总轮数）
+                if total_rounds > stats.pve_best_rounds:
+                    stats.pve_best_rounds = total_rounds
+                    
                 if session.accumulated_reward > 0:
                     stats.pve_total_earnings += session.accumulated_reward
+                    # 更新最大单局奖励
+                    if session.accumulated_reward > stats.pve_best_reward:
+                        stats.pve_best_reward = session.accumulated_reward
+                        
             elif session.mode == GameMode.PVP:
                 if winner and winner.user_id == player.user_id:
                     stats.pvp_wins += 1
