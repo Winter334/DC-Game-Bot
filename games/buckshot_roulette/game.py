@@ -245,6 +245,11 @@ class BuckshotRouletteGame:
             return
         
         if result.round_over:
+            # 弹夹打空时，先切换回合（除非获得额外回合）
+            # 这确保了无论弹夹是否打空，回合切换逻辑都一致
+            if not result.extra_turn:
+                session.next_turn()
+            
             # 设置装填状态，锁定按钮
             session.is_reloading = True
             
