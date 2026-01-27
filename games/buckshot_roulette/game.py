@@ -260,6 +260,9 @@ class BuckshotRouletteGame:
                 await self._handle_game_over(session, interaction)
                 return
             
+            # 发送装填通知消息（30秒后删除）
+            await self._send_reload_notification(session, interaction)
+            
             # 新一轮已经开始，直接更新界面
             await self._update_game_view(session, interaction)
             
@@ -317,6 +320,30 @@ class BuckshotRouletteGame:
         await asyncio.sleep(delay)
         try:
             await message.delete()
+        except:
+            pass
+    
+    async def _send_reload_notification(self, session: GameSession,
+                                        interaction: discord.Interaction) -> None:
+        """发送装填通知消息（30秒后删除）"""
+        try:
+            channel = interaction.channel
+            if channel:
+                live = session.shotgun.live_count
+                blank = session.shotgun.blank_count
+                total = live + blank
+                
+                # 创建装填通知嵌入消息
+                embed = discord.Embed(
+                    title="🔫 弹夹装填完成",
+                    description=f"**实弹**: {live} 发 🔴\n**空包弹**: {blank} 发 ⚪\n**总计**: {total} 发",
+                    color=discord.Color.orange()
+                )
+                embed.set_footer(text="此消息将在30秒后自动删除")
+                
+                reload_msg = await channel.send(embed=embed)
+                # 30秒后自动删除
+                asyncio.create_task(self._delete_after(reload_msg, 30))
         except:
             pass
     

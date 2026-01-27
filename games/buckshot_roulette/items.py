@@ -124,8 +124,8 @@ ITEMS = {
         item_type=ItemType.VEST,
         name="防弹背心",
         emoji="🦺",
-        description="下一次受到伤害时减少1点（最少受到1点）",
-        rarity=ItemRarity.RARE
+        description="下一次受到伤害时减少1点",
+        rarity=ItemRarity.EPIC  # 提高到史诗稀有度
     ),
     ItemType.ADRENALINE: Item(
         item_type=ItemType.ADRENALINE,
@@ -138,10 +138,10 @@ ITEMS = {
     ),
     ItemType.COIN: Item(
         item_type=ItemType.COIN,
-        name="幸运硬币",
+        name="命运硬币",
         emoji="🪙",
-        description="重新打乱弹夹顺序（不改变实弹/空包弹数量）",
-        rarity=ItemRarity.COMMON
+        description="抛硬币：正面当前子弹变实弹，反面变空包弹",
+        rarity=ItemRarity.RARE
     ),
     ItemType.TELESCOPE: Item(
         item_type=ItemType.TELESCOPE,
@@ -152,17 +152,18 @@ ITEMS = {
     ),
     ItemType.MEDKIT: Item(
         item_type=ItemType.MEDKIT,
-        name="急救包",
-        emoji="🩹",
-        description="立即恢复2点生命（可超过上限，但额外生命值会在回合结束后消失）",
+        name="手雷",
+        emoji="💣",
+        description="对对手造成1点直接伤害（无视防弹衣，但无法杀死对手）",
         rarity=ItemRarity.RARE
     ),
     ItemType.JAMMER: Item(
         item_type=ItemType.JAMMER,
         name="干扰器",
         emoji="📡",
-        description="使对手随机一个道具失效（隐藏标记）",
-        rarity=ItemRarity.EPIC
+        description="选择干扰对手的一个道具（隐藏标记，手雷被干扰会炸伤自己）",
+        rarity=ItemRarity.EPIC,
+        needs_target=True
     ),
 }
 
@@ -178,16 +179,16 @@ ITEM_POOL = {
         ItemType.MEDICINE,
         ItemType.INVERTER,
         ItemType.PHONE,
-        ItemType.COIN,
     ],
     ItemRarity.RARE: [
-        ItemType.VEST,
         ItemType.ADRENALINE,
         ItemType.TELESCOPE,
         ItemType.MEDKIT,
+        ItemType.COIN,
     ],
     ItemRarity.EPIC: [
         ItemType.JAMMER,
+        ItemType.VEST,  # 防弹衣移至史诗稀有度
     ],
 }
 

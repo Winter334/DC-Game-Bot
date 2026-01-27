@@ -37,20 +37,21 @@ class Player:
         """检查是否存活"""
         return self.health > 0
     
-    def take_damage(self, amount: int) -> int:
+    def take_damage(self, amount: int, ignore_vest: bool = False) -> int:
         """受到伤害
         
         Args:
             amount: 伤害量
+            ignore_vest: 是否无视防弹衣（手雷等）
             
         Returns:
             实际受到的伤害
         """
         actual_damage = amount
         
-        # 防弹背心减伤
-        if self.has_vest and amount > 0:
-            actual_damage = max(1, amount - 1)
+        # 防弹背心减少1点伤害（除非无视防弹衣）
+        if self.has_vest and amount > 0 and not ignore_vest:
+            actual_damage = max(0, amount - 1)
             self.has_vest = False
         
         # 先消耗超量治疗
@@ -63,7 +64,7 @@ class Player:
                 self.overheal = 0
         
         self.health = max(0, self.health - actual_damage)
-        return amount  # 返回原始伤害量
+        return actual_damage  # 返回实际伤害量
     
     def heal(self, amount: int, allow_overheal: bool = False) -> int:
         """恢复生命值

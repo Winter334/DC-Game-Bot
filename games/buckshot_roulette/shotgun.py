@@ -125,6 +125,37 @@ class Shotgun:
         
         return self.magazine[0]
     
+    def set_current_bullet(self, bullet_type: BulletType) -> Optional[BulletType]:
+        """设置当前子弹类型（命运硬币效果）
+        
+        Args:
+            bullet_type: 要设置的子弹类型
+            
+        Returns:
+            设置后的子弹类型
+        """
+        if not self.magazine:
+            return None
+        
+        current = self.magazine[0]
+        if current == bullet_type:
+            # 已经是目标类型，不需要改变
+            pass
+        else:
+            # 需要改变类型
+            self.magazine[0] = bullet_type
+            if bullet_type == BulletType.LIVE:
+                self.blank_count -= 1
+                self.live_count += 1
+            else:
+                self.live_count -= 1
+                self.blank_count += 1
+        
+        # 更新已知信息
+        self.known_bullets[0] = self.magazine[0]
+        
+        return self.magazine[0]
+    
     def fire(self) -> Tuple[Optional[BulletType], int]:
         """开枪
         

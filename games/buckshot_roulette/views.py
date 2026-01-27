@@ -14,9 +14,9 @@ from utils.helpers import format_chips
 from config import Config
 
 from .embeds import (
-    create_game_embed, create_stage_complete_embed, 
+    create_game_embed, create_stage_complete_embed,
     create_game_over_embed, create_item_select_embed,
-    create_adrenaline_select_embed
+    create_adrenaline_select_embed, create_jammer_select_embed
 )
 from .items import ItemType
 
@@ -167,6 +167,18 @@ class ItemSelectView(BaseView):
                     view.message = self.message
                     await interaction.response.edit_message(embed=embed, view=view)
                     return
+                # 如果没有可偷取道具，仍然使用（浪费道具惩罚判断失误）
+            
+            # 检查是否需要选择目标（干扰器）
+            if item.item_type == ItemType.JAMMER:
+                if self.session.opponent.items:
+                    embed = create_jammer_select_embed(self.session)
+                    view = JammerTargetView(self.game, self.session, self.user_id, item)
+                    self.session.set_current_view(view)  # 注册当前视图
+                    view.message = self.message
+                    await interaction.response.edit_message(embed=embed, view=view)
+                    return
+                # 如果对手没有道具，仍然使用（浪费道具惩罚判断失误）
             
             await interaction.response.defer()
             await self.game.handle_use_item(self.session, interaction, item)
@@ -213,6 +225,48 @@ class AdrenalineTargetView(BaseView):
         """选择目标"""
         await interaction.response.defer()
         await self.game.handle_use_item(self.session, interaction, self.adrenaline_item, index)
+    
+    async def on_back(self, interaction: discord.Interaction):
+        """返回道具选择"""
+        embed = create_item_select_embed(self.session)
+        view = ItemSelectView(self.game, self.session, self.user_id)
+        self.session.set_current_view(view)  # 注册当前视图
+        view.message = self.message
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class JammerTargetView(BaseView):
+    """干扰器目标选择View"""
+    
+    def __init__(self, game: 'BuckshotRouletteGame', session: 'GameSession',
+                 user_id: int, jammer_item):
+        super().__init__(user_id, timeout=Config.ITEM_SELECT_TIMEOUT)
+        self.game = game
+        self.session = session
+        self.jammer_item = jammer_item
+        self._setup_buttons()
+    
+    def _setup_buttons(self):
+        """设置目标按钮"""
+        opponent = self.session.opponent
+        
+        for i, item in enumerate(opponent.items[:8]):
+            row = i // 4
+            self.add_item(MenuButton(
+                label=item.name,
+                emoji=item.emoji,
+                callback=lambda inter, idx=i: self.on_target_select(inter, idx),
+                style=discord.ButtonStyle.secondary,
+                row=row
+            ))
+        
+        # 返回按钮
+        self.add_item(BackButton(callback=self.on_back, row=2))
+    
+    async def on_target_select(self, interaction: discord.Interaction, index: int):
+        """选择目标"""
+        await interaction.response.defer()
+        await self.game.handle_use_item(self.session, interaction, self.jammer_item, index)
     
     async def on_back(self, interaction: discord.Interaction):
         """返回道具选择"""

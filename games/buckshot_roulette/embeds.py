@@ -528,3 +528,44 @@ def create_adrenaline_select_embed(session: 'GameSession') -> discord.Embed:
     embed.set_footer(text="选择要偷取的道具")
     
     return embed
+
+
+def create_jammer_select_embed(session: 'GameSession') -> discord.Embed:
+    """创建干扰器目标选择Embed"""
+    opponent = session.opponent
+    
+    embed = discord.Embed(
+        title="📡 干扰器",
+        description=f"选择要干扰 **{opponent.name}** 的哪个道具\n⚠️ 被干扰的手雷会炸伤持有者！",
+        color=Colors.PURPLE
+    )
+    
+    if opponent.items:
+        for item in opponent.items:
+            # 特别标注手雷
+            if item.item_type.value == "medkit":  # 手雷的内部类型
+                embed.add_field(
+                    name=f"{item.emoji} {item.name} 💥",
+                    value=f"*{item.description}*\n**⚠️ 干扰后会炸伤持有者**",
+                    inline=True
+                )
+            else:
+                embed.add_field(
+                    name=f"{item.emoji} {item.name}",
+                    value=f"*{item.description}*",
+                    inline=True
+                )
+        
+        # 如果道具数量是奇数，添加空白占位
+        if len(opponent.items) % 2 == 1:
+            embed.add_field(name="\u200b", value="\u200b", inline=True)
+    else:
+        embed.add_field(
+            name="🚫 无法干扰",
+            value=f"{opponent.name} 没有道具可干扰",
+            inline=False
+        )
+    
+    embed.set_footer(text="选择要干扰的道具")
+    
+    return embed

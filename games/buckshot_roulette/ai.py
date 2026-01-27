@@ -202,15 +202,17 @@ class AIPlayer:
         if not stealable:
             return None
         
-        # 优先级：放大镜 > 手铐 > 手锯 > 逆转器 > 啤酒 > 其他
+        # 优先级：放大镜 > 手铐 > 手锯 > 逆转器 > 啤酒 > 手雷 > 香烟 > 其他
         priority = [
             ItemType.MAGNIFIER,
             ItemType.HANDCUFFS,
             ItemType.SAW,
             ItemType.INVERTER,
             ItemType.BEER,
+            ItemType.MEDKIT,  # 手雷 - 攻击道具
             ItemType.CIGARETTE,
-            ItemType.MEDKIT,
+            ItemType.COIN,  # 命运硬币
+            ItemType.VEST,
         ]
         
         for item_type in priority:
@@ -264,9 +266,16 @@ class AIPlayer:
             cigarette = self._get_items_by_type(ai.items, [ItemType.CIGARETTE])
             if cigarette:
                 return {"type": "use_item", "item": cigarette[0]}
-            medkit = self._get_items_by_type(ai.items, [ItemType.MEDKIT])
-            if medkit:
-                return {"type": "use_item", "item": medkit[0]}
+            # 穿防弹衣防止被一击杀
+            vest = self._get_items_by_type(ai.items, [ItemType.VEST])
+            if vest and not ai.has_vest:
+                return {"type": "use_item", "item": vest[0]}
+        
+        # 对手血量>1时使用手雷削弱对手（手雷无法杀死对手）
+        if opponent.health > 1:
+            grenade = self._get_items_by_type(ai.items, [ItemType.MEDKIT])
+            if grenade:
+                return {"type": "use_item", "item": grenade[0]}
         
         # 如果知道当前子弹类型
         if situation["current_bullet"] is not None:
@@ -312,7 +321,7 @@ class AIPlayer:
         
         # 1. 紧急情况处理
         if ai.health == 1:
-            # 优先使用防弹背心
+            # 优先使用防弹背心（完全抵挡一次伤害）
             vest = self._get_items_by_type(ai.items, [ItemType.VEST])
             if vest and not ai.has_vest:
                 return {"type": "use_item", "item": vest[0]}
@@ -320,11 +329,14 @@ class AIPlayer:
             cigarette = self._get_items_by_type(ai.items, [ItemType.CIGARETTE])
             if cigarette:
                 return {"type": "use_item", "item": cigarette[0]}
-            medkit = self._get_items_by_type(ai.items, [ItemType.MEDKIT])
-            if medkit:
-                return {"type": "use_item", "item": medkit[0]}
         
-        # 2. 如果确定当前子弹类型
+        # 2. 对手血量>1时使用手雷削弱对手（手雷无法杀死对手）
+        if opponent.health > 1:
+            grenade = self._get_items_by_type(ai.items, [ItemType.MEDKIT])
+            if grenade:
+                return {"type": "use_item", "item": grenade[0]}
+        
+        # 3. 如果确定当前子弹类型
         if situation["current_bullet"] is not None:
             if situation["current_bullet"] == BulletType.BLANK:
                 # 空包弹 - 考虑逆转后射对手
@@ -345,7 +357,7 @@ class AIPlayer:
                     return {"type": "use_item", "item": saw[0]}
                 return {"type": "shoot_opponent"}
         
-        # 3. 获取信息
+        # 4. 获取信息
         magnifier = self._get_items_by_type(ai.items, [ItemType.MAGNIFIER])
         if magnifier:
             return {"type": "use_item", "item": magnifier[0]}
@@ -358,7 +370,7 @@ class AIPlayer:
         if telescope and situation["remaining"] > 1:
             return {"type": "use_item", "item": telescope[0]}
         
-        # 4. 策略性道具使用
+        # 5. 策略性道具使用
         # 高概率实弹时先手铐
         if situation["live_prob"] >= 0.65 and self._should_use_handcuffs(session, situation):
             handcuffs = self._get_items_by_type(ai.items, [ItemType.HANDCUFFS])
@@ -369,7 +381,7 @@ class AIPlayer:
             beer = self._get_items_by_type(ai.items, [ItemType.BEER])
             return {"type": "use_item", "item": beer[0]}
         
-        # 5. 最终决策
+        # 6. 最终决策
         if situation["live_prob"] >= 0.5:
             # 高概率实弹时使用手锯
             if situation["live_prob"] >= 0.6 and not shotgun.is_sawed:
