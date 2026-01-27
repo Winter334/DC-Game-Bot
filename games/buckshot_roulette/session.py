@@ -264,19 +264,41 @@ class GameSession:
         # 清空之前的日志记录
         self.action_log.clear()
         
+        # 获取当前血量（用于平衡弹夹配置）
+        current_health = self.players[0].max_health if self.players else 5
+        
         # 装填弹夹
         if self.mode == GameMode.QUICK and hasattr(self, 'quick_difficulty_config'):
-            # 快速模式：使用难度配置的弹夹大小
+            # 快速模式：使用难度配置的弹夹大小，但仍需考虑血量平衡
             config = self.quick_difficulty_config
-            magazine_size = random.randint(config["magazine_min"], config["magazine_max"])
+            # 使用平衡的弹夹配置生成器
+            live, blank = generate_magazine_config(
+                stage=1,  # 快速模式视为第1阶段
+                round_in_stage=1,
+                max_health=current_health
+            )
+            # 确保总数在配置范围内
+            total = live + blank
+            min_size = config["magazine_min"]
+            max_size = config["magazine_max"]
+            if total < min_size or total > max_size:
+                # 重新生成符合范围的配置
+                magazine_size = random.randint(min_size, max_size)
+                # 使用平衡策略限制实弹数量
+                max_live = min(magazine_size - 1, current_health + 1)
+                if current_health <= 2:
+                    max_live = min(max_live, max(1, int(magazine_size * 0.6)))
+                elif current_health <= 3:
+                    max_live = min(max_live, max(2, int(magazine_size * 0.7)))
+                live = random.randint(1, max(1, max_live))
+                blank = magazine_size - live
         else:
-            # PvE/PvP模式：使用阶段管理器获取弹夹范围（固定2-8发）
-            min_size, max_size = self.stage_manager.get_magazine_size()
-            magazine_size = random.randint(min_size, max_size)
-        
-        # 均匀随机分布实弹数量（至少1发实弹，至少1发空包弹）
-        live = random.randint(1, magazine_size - 1)
-        blank = magazine_size - live
+            # PvE/PvP模式：使用平衡的弹夹配置生成器
+            live, blank = generate_magazine_config(
+                stage=self.stage_manager.current_stage,
+                round_in_stage=self.stage_manager.current_round,
+                max_health=current_health
+            )
         
         self.shotgun.load(live, blank)
         

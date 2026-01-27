@@ -245,17 +245,23 @@ class Shotgun:
         return f"🔫 弹夹: {self.format_magazine()} | {self.format_info()}"
 
 
-def generate_magazine_config(stage: int, round_in_stage: int) -> Tuple[int, int]:
-    """根据阶段生成弹夹配置（随机分布版本）
+def generate_magazine_config(stage: int, round_in_stage: int, max_health: int = 5) -> Tuple[int, int]:
+    """根据阶段和血量生成平衡的弹夹配置
+    
+    核心平衡原则：
+    1. 实弹总伤害潜力不应远超双方总血量
+    2. 实弹比例应与血量成反比关系
+    3. 保持随机性的同时避免极端不平衡
     
     Args:
         stage: 当前阶段（1-5+）
         round_in_stage: 阶段内的轮数（1-3）
+        max_health: 玩家最大血量（用于平衡计算）
         
     Returns:
         (实弹数量, 空包弹数量)
     """
-    # 基础弹夹大小范围（原版风格）
+    # 基础弹夹大小范围（根据阶段递增）
     size_ranges = {
         1: (2, 4),   # 第1阶段: 2-4发
         2: (3, 5),   # 第2阶段: 3-5发
@@ -270,23 +276,53 @@ def generate_magazine_config(stage: int, round_in_stage: int) -> Tuple[int, int]
     # 随机总数
     total = random.randint(min_size, max_size)
     
-    # 使用加权随机，让极端分布更常见
-    # 生成所有可能的实弹数量（1 到 total-1）
-    possible_live = list(range(1, total))
+    # === 平衡策略：基于血量限制实弹数量 ===
+    #
+    # 核心理念：实弹数量应该给双方留有博弈空间
+    # - 低血量时(2点)：实弹过多会导致先手必胜
+    # - 高血量时(5点)：可以容忍更多实弹增加紧张感
+    #
+    # 实弹上限公式：min(total - 1, max_health + 1)
+    # - 确保至少有1颗空包弹
+    # - 实弹不超过 (血量+1)，给后手方反击机会
     
-    # 使用 U 形权重分布：极端值（1发或max-1发）概率更高
-    # 中间值概率较低，增加游戏的紧张感和不确定性
-    weights = []
-    mid = len(possible_live) / 2
-    for i, live in enumerate(possible_live):
-        # 距离两端越近，权重越高
-        distance_from_edge = min(i, len(possible_live) - 1 - i)
-        # 边缘权重为3，中间权重为1
-        weight = 3 - (distance_from_edge / mid * 2) if mid > 0 else 3
-        weight = max(1, weight)
-        weights.append(weight)
+    max_live = min(total - 1, max_health + 1)
     
-    live = random.choices(possible_live, weights=weights, k=1)[0]
+    # 实弹下限：至少1颗，但不超过上限
+    min_live = 1
+    
+    # 如果血量极低(<=2)，进一步限制实弹比例
+    # 避免出现"2血量 + 4实弹2空弹"这种高压局面
+    if max_health <= 2:
+        # 低血量时，实弹不超过总数的60%
+        max_live = min(max_live, max(1, int(total * 0.6)))
+    elif max_health <= 3:
+        # 中低血量，实弹不超过总数的70%
+        max_live = min(max_live, max(2, int(total * 0.7)))
+    
+    # 确保 max_live >= min_live
+    max_live = max(max_live, min_live)
+    
+    # 生成可能的实弹数量列表
+    possible_live = list(range(min_live, max_live + 1))
+    
+    if len(possible_live) == 1:
+        live = possible_live[0]
+    else:
+        # 使用轻微的 U 形权重分布，但不那么极端
+        # 这样保持随机性的同时，避免总是中间值
+        weights = []
+        mid = len(possible_live) / 2
+        for i in range(len(possible_live)):
+            # 距离两端越近，权重略高
+            distance_from_edge = min(i, len(possible_live) - 1 - i)
+            # 边缘权重为2，中间权重为1（相比原来的3:1更温和）
+            weight = 2 - (distance_from_edge / mid) if mid > 0 else 2
+            weight = max(1, weight)
+            weights.append(weight)
+        
+        live = random.choices(possible_live, weights=weights, k=1)[0]
+    
     blank = total - live
     
     return live, blank
