@@ -67,9 +67,8 @@ class Config:
     ACTION_LOG_SIZE: int = 5          # 操作记录条数
     
     # 游戏模式配置
-    PVP_HEALTH: int = 3               # PvP模式初始生命值
     PVP_WINS_REQUIRED: int = 2        # PvP模式获胜所需胜场（Bo3=2）
-    # QUICK_HEALTH 已移至 QUICK_DIFFICULTY_CONFIG 中按难度配置
+    # PvP血量采用原版规则，由 stage_manager.get_health() 决定（第1轮2点，第2轮4点，第3轮5点）
     AI_THINK_DELAY: float = 1.5       # AI思考延迟（秒）
     RELOAD_DELAY: float = 5.0         # 装填延迟（秒）- 弹夹打空后等待时间
     
@@ -86,7 +85,6 @@ class Config:
     AUTO_DELETE_MESSAGES: bool = True           # 是否自动删除消息
     GAME_OVER_DELETE_DELAY: int = 180           # 游戏结束后删除延迟（秒）- 3分钟
     CHALLENGE_DELETE_DELAY: int = 120           # 挑战消息删除延迟（秒）- 2分钟
-    GAME_CENTER_DELETE_DELAY: int = 600         # 游戏中心面板删除延迟（秒）- 10分钟
     
     # 数据库配置
     DATABASE_PATH: str = os.getenv("DATABASE_PATH", "data/games.db")

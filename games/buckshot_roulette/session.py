@@ -174,8 +174,8 @@ class GameSession:
         self.bet_amount = bet
         self.challenger_id = player1_id  # 记录挑战发起者
         
-        # 创建玩家
-        health = Config.PVP_HEALTH
+        # 创建玩家 - 使用原版规则，第一轮血量由 stage_manager 决定
+        health = self.stage_manager.get_health()
         player1 = Player(
             user_id=player1_id,
             name=player1_name,
@@ -249,8 +249,15 @@ class GameSession:
         self.state = GameState.PLAYING
         self.started_at = datetime.now()
     
-    def start_round(self) -> None:
-        """开始新一轮"""
+    def start_round(self, give_items: bool = True) -> tuple:
+        """开始新一轮
+        
+        Args:
+            give_items: 是否发放道具（弹夹打空时为True，新轮次开始时也为True）
+            
+        Returns:
+            (实弹数量, 空包弹数量) 用于发送装填通知
+        """
         # 清空之前的日志记录
         self.action_log.clear()
         
@@ -276,45 +283,62 @@ class GameSession:
                 live = 1
             blank = magazine_size - live
         else:
-            # PvE/PvP模式：使用阶段管理器
-            stage = self.stage_manager.current_stage
-            round_in_stage = self.stage_manager.current_round
-            live, blank = generate_magazine_config(stage, round_in_stage)
+            # PvE/PvP模式：使用阶段管理器获取弹夹范围（固定2-8发）
+            min_size, max_size = self.stage_manager.get_magazine_size()
+            magazine_size = random.randint(min_size, max_size)
+            
+            # 使用加权随机，让极端分布更常见
+            possible_live = list(range(1, magazine_size))  # 1 到 magazine_size-1
+            if possible_live:
+                weights = []
+                mid = len(possible_live) / 2
+                for i in range(len(possible_live)):
+                    distance_from_edge = min(i, len(possible_live) - 1 - i)
+                    weight = 3 - (distance_from_edge / mid * 2) if mid > 0 else 3
+                    weight = max(1, weight)
+                    weights.append(weight)
+                live = random.choices(possible_live, weights=weights, k=1)[0]
+            else:
+                live = 1
+            blank = magazine_size - live
         
         self.shotgun.load(live, blank)
         
         # 发放道具
-        if self.mode == GameMode.QUICK and hasattr(self, 'quick_difficulty_config'):
-            # 快速模式：使用难度配置的道具数量
-            config = self.quick_difficulty_config
-            item_count = random.randint(config["items_min"], config["items_max"])
-        else:
-            # PvE/PvP模式：使用阶段管理器
-            min_items, max_items = self.stage_manager.get_item_count()
-            item_count = random.randint(min_items, max_items)
-        
-        for player in self.players:
-            # 清除超量治疗（新一轮开始时）
-            cleared = player.clear_overheal()
-            if cleared > 0:
-                self.add_log(f"{player.name} 的超量治疗效果消失了 (-{cleared} 生命)")
+        if give_items:
+            if self.mode == GameMode.QUICK and hasattr(self, 'quick_difficulty_config'):
+                # 快速模式：使用难度配置的道具数量
+                config = self.quick_difficulty_config
+                item_count = random.randint(config["items_min"], config["items_max"])
+            else:
+                # PvE/PvP模式：使用阶段管理器（固定1-3个）
+                min_items, max_items = self.stage_manager.get_item_count()
+                item_count = random.randint(min_items, max_items)
             
-            items = generate_items(item_count, Config.ENABLE_EXPANSION_ITEMS)
-            items_added = 0
-            for item in items:
-                if player.add_item(item):
-                    items_added += 1
-                else:
-                    # 道具栏已满，停止添加
-                    break
-            
-            # 如果有道具因为满了而无法添加，记录日志
-            if items_added < len(items):
-                self.add_log(f"⚠️ {player.name} 道具栏已满，部分道具无法获得")
+            for player in self.players:
+                # 清除超量治疗（发放道具时）
+                cleared = player.clear_overheal()
+                if cleared > 0:
+                    self.add_log(f"{player.name} 的超量治疗效果消失了 (-{cleared} 生命)")
+                
+                items = generate_items(item_count, Config.ENABLE_EXPANSION_ITEMS)
+                items_added = 0
+                for item in items:
+                    if player.add_item(item):
+                        items_added += 1
+                    else:
+                        # 道具栏已满，停止添加
+                        break
+                
+                # 如果有道具因为满了而无法添加，记录日志
+                if items_added < len(items):
+                    self.add_log(f"⚠️ {player.name} 道具栏已满，部分道具无法获得")
         
         # 显示装填信息（实弹和空包弹数量，会在第一次动作后移除）
         self.add_log(f"🔫 装填完成: 实弹 {live} 发, 空包弹 {blank} 发")
         self._magazine_info_shown = True
+        
+        return (live, blank)
     
     def _clear_magazine_info(self) -> None:
         """清除装填信息（第一次动作后调用）"""
@@ -351,12 +375,16 @@ class GameSession:
             
             message = f"💥 {shooter.name} 射击了 {target.name}！"
             if damage > 1:
-                message += f" (锯短枪管，{actual_damage}点伤害)"
+                message += f" (锯短枪管)"
+            
+            if had_vest:
+                # 防弹衣减少了1点伤害
+                if actual_damage == 0:
+                    message += " 🦺防弹背心抵挡了伤害！"
+                else:
+                    message += f" 🦺防弹背心减伤！({actual_damage}点伤害)"
             else:
                 message += f" ({actual_damage}点伤害)"
-            
-            if had_vest and damage > actual_damage:
-                message += " 🦺防弹背心减伤！"
             
             self.add_log(message)
             
@@ -421,11 +449,20 @@ class GameSession:
         shooter = self.current_player
         
         if bullet == BulletType.LIVE:
+            # 记录是否有防弹背心（在take_damage之前检查）
+            had_vest = shooter.has_vest
             actual_damage = shooter.take_damage(damage)
             
             message = f"💥 {shooter.name} 射击了自己！"
             if damage > 1:
-                message += f" (锯短枪管，{actual_damage}点伤害)"
+                message += f" (锯短枪管)"
+            
+            if had_vest:
+                # 防弹衣减少了1点伤害
+                if actual_damage == 0:
+                    message += " 🦺防弹背心抵挡了伤害！"
+                else:
+                    message += f" 🦺防弹背心减伤！({actual_damage}点伤害)"
             else:
                 message += f" ({actual_damage}点伤害)"
             
@@ -489,15 +526,40 @@ class GameSession:
         if player.jammed_item is not None and item is player.jammed_item:
             player.remove_item(item)
             player.jammed_item = None
-            message = f"⚡ {player.name} 使用了 {item}... 道具被干扰，失效了！"
-            self.add_log(message)
-            return ActionResult(
-                action_type=ActionType.USE_ITEM,
-                success=False,
-                message=message,
-                item_used=item,
-                extra_turn=True  # 即使道具被干扰失效，也不消耗回合
-            )
+            
+            # 手雷被干扰时会炸伤自己
+            if item.item_type == ItemType.MEDKIT:
+                damage = player.take_damage(1, ignore_vest=True)
+                message = f"⚡ {player.name} 使用了 {item}... 道具被干扰！💣 手雷炸伤了自己！(-1 生命)"
+                self.add_log(message)
+                
+                player_dead = not player.is_alive()
+                if self.mode == GameMode.QUICK:
+                    game_over = player_dead
+                elif self.mode == GameMode.PVE:
+                    game_over = player_dead and not player.is_ai
+                else:
+                    game_over = False
+                
+                return ActionResult(
+                    action_type=ActionType.USE_ITEM,
+                    success=False,
+                    message=message,
+                    item_used=item,
+                    game_over=game_over,
+                    round_over=player_dead,
+                    extra_turn=not player_dead  # 玩家死亡就不能继续行动了
+                )
+            else:
+                message = f"⚡ {player.name} 使用了 {item}... 道具被干扰，失效了！"
+                self.add_log(message)
+                return ActionResult(
+                    action_type=ActionType.USE_ITEM,
+                    success=False,
+                    message=message,
+                    item_used=item,
+                    extra_turn=True  # 即使道具被干扰失效，也不消耗回合
+                )
         
         # 移除道具
         player.remove_item(item)
@@ -551,10 +613,10 @@ class GameSession:
                 extra_info = f"🔗 {opponent.name} 被铐住了，下回合将被跳过"
         
         elif item.item_type == ItemType.MEDICINE:
-            if random.random() < 0.5:
+            if random.random() < 0.5:  # 50%成功概率
                 healed = player.heal(2)
                 extra_info = f"✅ 药物有效！恢复了 {healed} 点生命"
-            else:
+            else:  # 50%失败概率
                 damage = player.take_damage(1)
                 extra_info = f"❌ 药物过期！受到 {damage} 点伤害"
         
@@ -590,7 +652,7 @@ class GameSession:
         
         elif item.item_type == ItemType.VEST:
             if player.has_vest:
-                extra_info = "🦺 已经穿着防弹背心了！（效果重复）"
+                extra_info = "🦺 已经穿着防弹背心了！（道具浪费）"
             else:
                 player.has_vest = True
                 extra_info = "🦺 防弹背心已装备，下次受伤减少1点"
@@ -638,10 +700,19 @@ class GameSession:
         
         elif item.item_type == ItemType.COIN:
             if self.shotgun.is_empty():
-                extra_info = "⚠️ 弹夹已空，无法打乱"
+                extra_info = "⚠️ 弹夹已空，无法使用"
             else:
-                self.shotgun.reload_shuffle()
-                extra_info = "🪙 弹夹已重新打乱"
+                # 抛硬币：正面变实弹，反面变空包弹
+                if random.random() < 0.5:
+                    # 正面 - 变实弹
+                    self.shotgun.set_current_bullet(BulletType.LIVE)
+                    private_info = "🪙 正面！当前子弹变成了实弹"
+                    extra_info = "抛出了硬币..."
+                else:
+                    # 反面 - 变空包弹
+                    self.shotgun.set_current_bullet(BulletType.BLANK)
+                    private_info = "🪙 反面！当前子弹变成了空包弹"
+                    extra_info = "抛出了硬币..."
         
         elif item.item_type == ItemType.TELESCOPE:
             remaining = self.shotgun.remaining_count()
@@ -660,15 +731,22 @@ class GameSession:
                 extra_info = "查看了第2发子弹"
         
         elif item.item_type == ItemType.MEDKIT:
-            healed = player.heal(2, allow_overheal=True)
-            if player.overheal > 0:
-                extra_info = f"🩹 恢复了 {healed} 点生命（超量治疗 +{player.overheal}）"
+            # 手雷：对对手造成1点直接伤害（无视防弹衣，但不能杀死对手）
+            if opponent.health > 1:
+                actual_damage = opponent.take_damage(1, ignore_vest=True)
+                extra_info = f"💣 手雷爆炸！对 {opponent.name} 造成了 1 点伤害"
             else:
-                extra_info = f"🩹 恢复了 {healed} 点生命"
+                # 对手只有1血时，手雷无法生效
+                extra_info = f"💣 手雷爆炸！但 {opponent.name} 命悬一线，手雷无法杀死他！"
         
         elif item.item_type == ItemType.JAMMER:
-            if opponent.items:
-                # 随机选择一个道具并存储引用，而非索引（避免道具删除后索引错位）
+            if opponent.items and target_index is not None and 0 <= target_index < len(opponent.items):
+                # 玩家选择干扰目标道具
+                jammed_item = opponent.items[target_index]
+                opponent.jammed_item = jammed_item
+                extra_info = f"📡 {opponent.name} 的一个道具已被干扰（对方不可见）"
+            elif opponent.items:
+                # AI使用时随机选择（或未提供target_index时）
                 jammed_item = random.choice(opponent.items)
                 opponent.jammed_item = jammed_item
                 extra_info = f"📡 {opponent.name} 的一个道具已被干扰（对方不可见）"
@@ -733,23 +811,12 @@ class GameSession:
             if not player.is_alive():
                 return self.handle_player_death(player)
         
-        # 弹夹打空，重新装填（保留道具和受伤状态）
-        if self.mode == GameMode.PVE:
-            # PvE模式：弹夹打空不推进轮数，只重新装填
-            # 只重置临时效果（手铐等），保留道具和生命值
-            self._reset_temporary_effects()
-            self.start_round()
-            return False
-        elif self.mode == GameMode.PVP:
-            # PvP模式：弹夹打空重新装填（保留道具和受伤状态）
-            self._reset_temporary_effects()
-            self.start_round()
-            return False
-        else:
-            # 快速模式：弹夹打空重新装填（保留道具和受伤状态）
-            self._reset_temporary_effects()
-            self.start_round()
-            return False
+        # 弹夹打空，重新装填并发放道具（保留血量状态）
+        # 重置临时效果（手铐等）
+        self._reset_temporary_effects()
+        # 重新装填并发放道具
+        self.start_round(give_items=True)
+        return False
     
     def handle_player_death(self, dead_player: Player) -> bool:
         """处理玩家死亡
@@ -768,9 +835,11 @@ class GameSession:
                     self.state = GameState.STAGE_COMPLETE
                     return True
                 else:
-                    # 同阶段内进入下一轮（保留道具）
-                    self.reset_round_state(clear_items=False)
-                    self.start_round()
+                    # 同阶段内进入下一轮，清除道具（跨轮不保留道具）
+                    self.reset_round_state(clear_items=True)
+                    # PVE模式：玩家先手
+                    self.current_turn = 0
+                    self.start_round(give_items=True)
                     return False
             else:
                 # 玩家死亡，游戏结束
@@ -779,8 +848,9 @@ class GameSession:
                 return True
         
         elif self.mode == GameMode.PVP:
-            # PvP模式：记录得分
-            winner_idx = 1 - self.players.index(dead_player)
+            # PvP模式：记录得分，输家（死亡方）下一轮先手
+            dead_player_idx = self.players.index(dead_player)
+            winner_idx = 1 - dead_player_idx
             self.pvp_scores[winner_idx] += 1
             
             # 检查是否有人赢得比赛
@@ -791,9 +861,9 @@ class GameSession:
             else:
                 # 开始下一轮PvP，使用 stage_manager 递增轮数
                 self.pvp_current_round += 1
-                self.stage_manager.advance_round()  # 推进轮数，增加血量/子弹/道具
-                self.reset_pvp_round()
-                self.start_round()
+                self.stage_manager.advance_round()  # 推进轮数，增加血量
+                self.reset_pvp_round(loser_first=dead_player_idx)  # 输家先手
+                self.start_round(give_items=True)
                 return False
         
         else:
@@ -829,14 +899,21 @@ class GameSession:
         # PvE模式：玩家先手
         self.current_turn = 0
     
-    def reset_pvp_round(self) -> None:
-        """重置PvP轮次状态"""
+    def reset_pvp_round(self, loser_first: Optional[int] = None) -> None:
+        """重置PvP轮次状态
+        
+        Args:
+            loser_first: 输家的索引（该玩家先手），如果为None则随机先手
+        """
         # 使用 stage_manager 获取当前轮的血量
         health = self.stage_manager.get_health()
         for player in self.players:
-            player.reset_round(health, clear_items=False)  # PvP保留道具
-        # 随机先手
-        self.current_turn = random.randint(0, 1)
+            player.reset_round(health, clear_items=True)  # PvP跨轮清除道具
+        # 输家先手，如果没有指定则随机
+        if loser_first is not None:
+            self.current_turn = loser_first
+        else:
+            self.current_turn = random.randint(0, 1)
     
     def handle_retreat(self) -> int:
         """处理撤离
@@ -854,7 +931,7 @@ class GameSession:
         """处理继续挑战（进入新阶段，清除道具）"""
         self.stage_manager.advance_stage()
         self.reset_round_state(clear_items=True)
-        self.start_round()
+        self.start_round(give_items=True)
         self.state = GameState.PLAYING
     
     def get_winner(self) -> Optional[Player]:
