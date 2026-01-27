@@ -266,41 +266,14 @@ class GameSession:
             # 快速模式：使用难度配置的弹夹大小
             config = self.quick_difficulty_config
             magazine_size = random.randint(config["magazine_min"], config["magazine_max"])
-            
-            # 使用加权随机，让极端分布更常见
-            possible_live = list(range(1, magazine_size))  # 1 到 magazine_size-1
-            if possible_live:
-                # U 形权重分布：极端值概率更高
-                weights = []
-                mid = len(possible_live) / 2
-                for i in range(len(possible_live)):
-                    distance_from_edge = min(i, len(possible_live) - 1 - i)
-                    weight = 3 - (distance_from_edge / mid * 2) if mid > 0 else 3
-                    weight = max(1, weight)
-                    weights.append(weight)
-                live = random.choices(possible_live, weights=weights, k=1)[0]
-            else:
-                live = 1
-            blank = magazine_size - live
         else:
             # PvE/PvP模式：使用阶段管理器获取弹夹范围（固定2-8发）
             min_size, max_size = self.stage_manager.get_magazine_size()
             magazine_size = random.randint(min_size, max_size)
-            
-            # 使用加权随机，让极端分布更常见
-            possible_live = list(range(1, magazine_size))  # 1 到 magazine_size-1
-            if possible_live:
-                weights = []
-                mid = len(possible_live) / 2
-                for i in range(len(possible_live)):
-                    distance_from_edge = min(i, len(possible_live) - 1 - i)
-                    weight = 3 - (distance_from_edge / mid * 2) if mid > 0 else 3
-                    weight = max(1, weight)
-                    weights.append(weight)
-                live = random.choices(possible_live, weights=weights, k=1)[0]
-            else:
-                live = 1
-            blank = magazine_size - live
+        
+        # 均匀随机分布实弹数量（至少1发实弹，至少1发空包弹）
+        live = random.randint(1, magazine_size - 1)
+        blank = magazine_size - live
         
         self.shotgun.load(live, blank)
         
