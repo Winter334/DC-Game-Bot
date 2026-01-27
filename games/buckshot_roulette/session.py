@@ -622,16 +622,11 @@ class GameSession:
         
         elif item.item_type == ItemType.INVERTER:
             new_bullet = self.shotgun.invert_current()
-            # 逆转器的结果也应该是私密的
+            # 原版规则：逆转器使用后不告诉玩家结果
             if new_bullet is None:
                 extra_info = "⚠️ 弹夹已空，无法逆转"
-                private_info = extra_info
-            elif new_bullet == BulletType.LIVE:
-                private_info = "🔄 当前子弹变成了实弹"
-                extra_info = "逆转了当前子弹"
             else:
-                private_info = "🔄 当前子弹变成了空包弹"
-                extra_info = "逆转了当前子弹"
+                extra_info = "🔄 逆转了当前子弹"
         
         elif item.item_type == ItemType.PHONE:
             remaining = self.shotgun.remaining_count()

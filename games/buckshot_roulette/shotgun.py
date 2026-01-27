@@ -104,6 +104,8 @@ class Shotgun:
     def invert_current(self) -> Optional[BulletType]:
         """反转当前子弹（逆转器效果）
         
+        原版规则：使用后玩家不知道结果，需要清除已知信息
+        
         Returns:
             反转后的子弹类型
         """
@@ -120,8 +122,9 @@ class Shotgun:
             self.blank_count -= 1
             self.live_count += 1
         
-        # 更新已知信息
-        self.known_bullets[0] = self.magazine[0]
+        # 原版规则：逆转后玩家不知道结果，清除已知信息
+        if 0 in self.known_bullets:
+            del self.known_bullets[0]
         
         return self.magazine[0]
     
