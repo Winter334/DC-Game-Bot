@@ -68,6 +68,7 @@ class GameView(BaseView):
         # 只有当前玩家可以操作
         is_current = self.session.current_player.user_id == self.user_id
         is_ai_turn = self.session.current_player.is_ai
+        is_reloading = self.session.is_reloading  # 正在装填时禁用按钮
         
         # 射击对手
         self.add_item(MenuButton(
@@ -75,7 +76,7 @@ class GameView(BaseView):
             emoji=Emoji.SHOOT,
             callback=self.on_shoot_opponent,
             style=discord.ButtonStyle.danger,
-            disabled=not is_current or is_ai_turn,
+            disabled=not is_current or is_ai_turn or is_reloading,
             row=0
         ))
         
@@ -85,7 +86,7 @@ class GameView(BaseView):
             emoji=Emoji.TARGET,
             callback=self.on_shoot_self,
             style=discord.ButtonStyle.primary,
-            disabled=not is_current or is_ai_turn,
+            disabled=not is_current or is_ai_turn or is_reloading,
             row=0
         ))
         
@@ -96,7 +97,7 @@ class GameView(BaseView):
             emoji=Emoji.ITEM,
             callback=self.on_use_item,
             style=discord.ButtonStyle.secondary,
-            disabled=not is_current or is_ai_turn or not has_items,
+            disabled=not is_current or is_ai_turn or not has_items or is_reloading,
             row=0
         ))
     

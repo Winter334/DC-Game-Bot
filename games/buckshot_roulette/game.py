@@ -245,13 +245,19 @@ class BuckshotRouletteGame:
             return
         
         if result.round_over:
-            # 先更新一次界面，显示最后的动作结果（弹夹打空前的状态）
+            # 设置装填状态，锁定按钮
+            session.is_reloading = True
+            
+            # 先更新一次界面，显示最后的动作结果（按钮已禁用）
             await self._update_game_view(session, interaction)
             
             # 等待一段时间让玩家看到结果，再进行装填
             await asyncio.sleep(Config.RELOAD_DELAY)
             
             stage_complete = session.handle_round_end()
+            
+            # 装填完成，解除锁定
+            session.is_reloading = False
             
             if session.state == GameState.STAGE_COMPLETE:
                 await self._show_stage_complete(session, interaction)

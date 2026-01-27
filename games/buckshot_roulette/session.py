@@ -70,6 +70,9 @@ class GameSession:
     action_log: List[str] = field(default_factory=list)
     _magazine_info_shown: bool = False  # 是否显示过装填信息（用于在动作后移除）
     
+    # 装填状态（弹夹打空时锁定按钮）
+    is_reloading: bool = False
+    
     # 经济
     bet_amount: int = 0               # PvP押注金额
     entry_fee: int = 0                # 入场费
