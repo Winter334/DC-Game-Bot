@@ -35,6 +35,14 @@ class GameCenterView(BaseView):
             style=discord.ButtonStyle.primary
         ))
         
+        # PokeRogue 外链按钮
+        self.add_item(discord.ui.Button(
+            label="PokeRogue",
+            emoji=Emoji.POKEROGUE,
+            style=discord.ButtonStyle.link,
+            url="https://pkr.lyrashore.com"
+        ))
+        
         # 个人统计按钮
         self.add_item(MenuButton(
             label="个人统计",
@@ -242,7 +250,7 @@ class GameCenterView(BaseView):
             name="欢迎来到游戏中心！",
             value="选择一个游戏开始：\n\n"
                   f"{Emoji.BUCKSHOT} **恶魔轮盘赌** - 与恶魔进行致命的轮盘赌\n"
-                  f"🎲 更多游戏即将推出...",
+                  f"{Emoji.POKEROGUE} **PokeRogue** - 宝可梦肉鸽冒险游戏",
             inline=False
         )
         return embed
@@ -429,7 +437,7 @@ class BuckshotRouletteView(BaseView):
             name="欢迎来到游戏中心！",
             value="选择一个游戏开始：\n\n"
                   f"{Emoji.BUCKSHOT} **恶魔轮盘赌** - 与恶魔进行致命的轮盘赌\n"
-                  f"🎲 更多游戏即将推出...",
+                  f"{Emoji.POKEROGUE} **PokeRogue** - 宝可梦肉鸽冒险游戏",
             inline=False
         )
         return embed
@@ -467,7 +475,7 @@ class BackOnlyView(BaseView):
             name="欢迎来到游戏中心！",
             value="选择一个游戏开始：\n\n"
                   f"{Emoji.BUCKSHOT} **恶魔轮盘赌** - 与恶魔进行致命的轮盘赌\n"
-                  f"🎲 更多游戏即将推出...",
+                  f"{Emoji.POKEROGUE} **PokeRogue** - 宝可梦肉鸽冒险游戏",
             inline=False
         )
         return embed
@@ -699,7 +707,7 @@ class TransferView(BaseView):
             name="欢迎来到游戏中心！",
             value="选择一个游戏开始：\n\n"
                   f"{Emoji.BUCKSHOT} **恶魔轮盘赌** - 与恶魔进行致命的轮盘赌\n"
-                  f"🎲 更多游戏即将推出...",
+                  f"{Emoji.POKEROGUE} **PokeRogue** - 宝可梦肉鸽冒险游戏",
             inline=False
         )
         return embed
@@ -933,7 +941,7 @@ class GameCenterCog(commands.Cog):
             name="欢迎来到游戏中心！",
             value="选择一个游戏开始：\n\n"
                   f"{Emoji.BUCKSHOT} **恶魔轮盘赌** - 与恶魔进行致命的轮盘赌\n"
-                  f"🎲 更多游戏即将推出...",
+                  f"{Emoji.POKEROGUE} **PokeRogue** - 宝可梦肉鸽冒险游戏",
             inline=False
         )
         

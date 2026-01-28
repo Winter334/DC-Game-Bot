@@ -21,6 +21,9 @@ class Emoji:
     QUICK = "⚡"
     RULES = "📖"
     
+    # PokeRogue
+    POKEROGUE = "🎮"
+    
     # 生命值
     HEART = "❤️"
     HEART_EMPTY = "🖤"
